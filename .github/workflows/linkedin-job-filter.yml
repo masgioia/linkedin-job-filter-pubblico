@@ -1,0 +1,48 @@
+name: LinkedIn Job Filter
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linkedin-job-filter
+  cancel-in-progress: false
+
+jobs:
+  filter-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Create private profile file
+        env:
+          JOB_SEARCH_PROFILE: ${{ secrets.JOB_SEARCH_PROFILE }}
+        run: |
+          test -n "$JOB_SEARCH_PROFILE" || {
+            echo "::error::GitHub Secret JOB_SEARCH_PROFILE is missing."
+            exit 1
+          }
+          printf '%s' "$JOB_SEARCH_PROFILE" > job_search_profile.md
+
+      - name: Validate and run
+        env:
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
+          APIFY_TASK_ID: ${{ secrets.APIFY_TASK_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python -m py_compile app.py
+          python -u app.py

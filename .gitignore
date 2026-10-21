@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+job_search_profile.md
+results/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.DS_Store
