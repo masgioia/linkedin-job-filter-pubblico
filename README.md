@@ -17,13 +17,13 @@ Required environment variables:
 - `APIFY_API_TOKEN`
 - `APIFY_TASK_ID`
 - `GEMINI_API_KEY`
-- Optional: `GEMINI_MODEL` (defaults to `gemini-3.5-flash-lite`)
+- Optional: `GEMINI_MODEL` (defaults to `gemini-3.5-flash-lite`; a currently listed stable model in the official Gemini API documentation)
 
 Create a local `job_search_profile.md` containing your own profile. That file, results, environment files, and Python caches are excluded by `.gitignore`. Never commit API keys or personal job-search criteria.
 
 Install dependencies with `pip install -r requirements.txt`, set the environment variables, and run `python app.py`.
 
-For GitHub Actions, configure `APIFY_API_TOKEN`, `APIFY_TASK_ID`, `GEMINI_API_KEY`, and `JOB_SEARCH_PROFILE` as repository secrets. The workflow is manual only and does not upload results as artifacts.
+For GitHub Actions, configure `APIFY_API_TOKEN`, `APIFY_TASK_ID`, `GEMINI_API_KEY`, and `JOB_SEARCH_PROFILE` as repository secrets. The workflow is manual only. On completion, it uploads the `results/` directory as the `linkedin-job-filter-results` artifact, retained for 14 days. Download it from the workflow run page.
 
 ## Privacy
 
