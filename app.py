@@ -150,16 +150,33 @@ def save(results):
             writer.writerow({key: row.get(key, "") for key in COLUMNS})
 
 
+def load_profile():
+    # A personal profile overrides the public example when supplied locally.
+    personal_path = Path("job_search_profile.md")
+    example_path = Path("job_search_profile.example.md")
+    profile_path = personal_path if personal_path.is_file() else example_path
+    if not profile_path.is_file():
+        raise FileNotFoundError(
+            "Nessun profilo trovato: crea job_search_profile.md "
+            "oppure aggiungi job_search_profile.example.md."
+        )
+    profile = profile_path.read_text(encoding="utf-8").strip()
+    if not profile:
+        raise ValueError(f"Il profilo {profile_path} è vuoto.")
+    if profile_path == example_path:
+        print(
+            "AVVISO: uso job_search_profile.example.md. "
+            "I risultati rifletteranno il profilo generico di esempio, "
+            "non criteri personali."
+        )
+    return profile
+
+
 def main():
     for key in ("APIFY_API_TOKEN", "APIFY_TASK_ID", "GEMINI_API_KEY"):
         if not os.environ.get(key, "").strip():
             raise RuntimeError(f"Variabile mancante: {key}")
-    profile_path = Path("job_search_profile.md")
-    if not profile_path.is_file():
-        raise FileNotFoundError("Crea job_search_profile.md con il tuo profilo.")
-    profile = profile_path.read_text(encoding="utf-8").strip()
-    if not profile:
-        raise ValueError("Il profilo professionale è vuoto.")
+    profile = load_profile()
 
     print("Avvio raccolta annunci...")
     jobs = get_jobs(start_apify())
