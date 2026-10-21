@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
 
-      - name: Validate configuration
+      - name: Run automated tests\n        run: python -m unittest discover -s tests -v\n\n      - name: Validate configuration
         env:
           APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
           APIFY_TASK_ID: ${{ vars.APIFY_TASK_ID }}
