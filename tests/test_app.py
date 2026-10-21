@@ -1,0 +1,130 @@
+import json
+import os
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import app
+
+
+class NormalizeTests(unittest.TestCase):
+    def test_normalize_supported_source_fields(self):
+        job = app.normalize({
+            "jobTitle": "ML Engineer",
+            "companyName": "Example Ltd",
+            "jobLocation": "Remote",
+            "jobUrl": "https://example.test/job/1",
+            "postedDate": "2026-10-01",
+            "jobDescription": "Build machine learning systems.",
+        })
+        self.assertEqual(job["title"], "ML Engineer")
+        self.assertEqual(job["company"], "Example Ltd")
+        self.assertEqual(job["location"], "Remote")
+        self.assertEqual(job["url"], "https://example.test/job/1")
+        self.assertEqual(job["posted_at"], "2026-10-01")
+        self.assertEqual(job["description"], "Build machine learning systems.")
+
+    def test_normalize_missing_fields_as_empty_strings(self):
+        job = app.normalize({})
+        self.assertTrue(all(value == "" for value in job.values()))
+
+
+class ProfileTests(unittest.TestCase):
+    def test_personal_profile_takes_precedence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "job_search_profile.md").write_text("Personal criteria", encoding="utf-8")
+            (root / "job_search_profile.example.md").write_text("Example criteria", encoding="utf-8")
+            with patch("app.Path", side_effect=lambda value=".": Path(directory) / value):
+                self.assertEqual(app.load_profile(), "Personal criteria")
+
+    def test_example_profile_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "job_search_profile.example.md").write_text("Example criteria", encoding="utf-8")
+            with patch("app.Path", side_effect=lambda value=".": Path(directory) / value):
+                self.assertEqual(app.load_profile(), "Example criteria")
+
+    def test_empty_profile_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "job_search_profile.example.md").write_text("  ", encoding="utf-8")
+            with patch("app.Path", side_effect=lambda value=".": Path(directory) / value):
+                with self.assertRaises(ValueError):
+                    app.load_profile()
+
+
+class EvaluationTests(unittest.TestCase):
+    def _response(self, payload):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "candidates": [{
+                "content": {"parts": [{"text": json.dumps(payload)}]}
+            }]
+        }
+        return response
+
+    def test_evaluate_accepts_valid_result(self):
+        payload = {
+            "fit_score": 4, "income_score": 3, "ai_score": 5, "low_stress_score": 2,
+            "assessment": "Good technical match",
+            "evidence": ["Python required"], "inferences": [], "unknowns": [],
+            "strengths": ["ML experience"], "risks": ["On-call unclear"],
+            "recommendation": "CONSIDER",
+        }
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}), patch(
+            "app.requests.post", return_value=self._response(payload)
+        ):
+            self.assertEqual(app.evaluate("profile", {"title": "ML Engineer", "company": "X",
+                "location": "Remote", "posted_at": "", "description": "Python and ML"}), payload)
+
+    def test_evaluate_rejects_invalid_score(self):
+        payload = {
+            "fit_score": 9, "income_score": 3, "ai_score": 5, "low_stress_score": 2,
+            "recommendation": "CONSIDER",
+        }
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}), patch(
+            "app.requests.post", return_value=self._response(payload)
+        ):
+            with self.assertRaises(ValueError):
+                app.evaluate("profile", {"title": "Role", "company": "", "location": "",
+                    "posted_at": "", "description": "Description"})
+
+    def test_evaluate_rejects_invalid_recommendation(self):
+        payload = {
+            "fit_score": 4, "income_score": 3, "ai_score": 5, "low_stress_score": 2,
+            "recommendation": "MAYBE",
+        }
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}), patch(
+            "app.requests.post", return_value=self._response(payload)
+        ):
+            with self.assertRaises(ValueError):
+                app.evaluate("profile", {"title": "Role", "company": "", "location": "",
+                    "posted_at": "", "description": "Description"})
+
+
+class OutputTests(unittest.TestCase):
+    def test_save_writes_json_and_csv(self):
+        results = [{
+            "title": "ML Engineer", "company": "Example", "fit_score": 4,
+            "recommendation": "APPLY", "evidence": ["Python", "ML"],
+            "inferences": [], "unknowns": [], "strengths": ["Relevant"],
+            "risks": [],
+        }]
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            app, "OUTPUT_DIR", Path(directory) / "results"
+        ):
+            app.save(results)
+            json_path = Path(directory) / "results" / "job_results.json"
+            csv_path = Path(directory) / "results" / "job_results.csv"
+            self.assertTrue(json_path.is_file())
+            self.assertTrue(csv_path.is_file())
+            self.assertEqual(json.loads(json_path.read_text(encoding="utf-8")), results)
+            self.assertIn("ML Engineer", csv_path.read_text(encoding="utf-8-sig"))
+            self.assertIn("Python | ML", csv_path.read_text(encoding="utf-8-sig"))
+
+
+if __name__ == "__main__":
+    unittest.main()
