@@ -33,11 +33,10 @@ jobs:
           APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
           APIFY_TASK_ID: ${{ vars.APIFY_TASK_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          JOB_SEARCH_PROFILE: ${{ secrets.JOB_SEARCH_PROFILE }}
         shell: bash
         run: |
           missing=0
-          for name in APIFY_API_TOKEN GEMINI_API_KEY JOB_SEARCH_PROFILE; do
+          for name in APIFY_API_TOKEN GEMINI_API_KEY; do
             value="${!name}"
             if [[ -z "${value//[[:space:]]/}" ]]; then
               echo "::error::GitHub Secret $name is missing or empty."
@@ -48,12 +47,11 @@ jobs:
             echo "::error::GitHub Actions Variable APIFY_TASK_ID is missing or empty."
             missing=1
           fi
+          if [[ ! -s job_search_profile.example.md ]]; then
+            echo "::error::job_search_profile.example.md is missing or empty."
+            missing=1
+          fi
           exit "$missing"
-
-      - name: Create private profile file
-        env:
-          JOB_SEARCH_PROFILE: ${{ secrets.JOB_SEARCH_PROFILE }}
-        run: printf '%s' "$JOB_SEARCH_PROFILE" > job_search_profile.md
 
       - name: Run job filter
         env:
