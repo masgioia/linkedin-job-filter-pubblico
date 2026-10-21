@@ -48,4 +48,4 @@ Public repositories and their commit history are visible to everyone. Do not add
 
 ## License
 
-No license is provided. Public visibility alone does not grant permission to reuse or distribute this code.
+This project is distributed under the MIT License. See [LICENSE](LICENSE) for the full text.
