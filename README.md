@@ -19,15 +19,14 @@ For local execution, set these environment variables:
 - `GEMINI_API_KEY` — Google Gemini API credential.
 - Optional: `GEMINI_MODEL` (defaults to `gemini-3.5-flash-lite`).
 
-Create a local `job_search_profile.md` containing your own profile. Use `job_search_profile.example.md` as a template. Do not commit personal job-search criteria or API credentials.
+Create a local `job_search_profile.md` containing your own profile. The program uses this file when it exists; otherwise, it falls back to `job_search_profile.example.md`. Do not commit personal job-search criteria or API credentials.
 
 ### GitHub Actions setup
 
-In **Settings → Secrets and variables → Actions**, create these **repository secrets**:
+In **Settings → Secrets and variables → Actions**, create these two **repository secrets**:
 
 - `APIFY_API_TOKEN`
 - `GEMINI_API_KEY`
-- `JOB_SEARCH_PROFILE` — the full text of your profile, which the workflow writes to a temporary `job_search_profile.md` file during the run.
 
 Create this **repository variable** (not a secret):
 
@@ -35,11 +34,13 @@ Create this **repository variable** (not a secret):
 
 Optionally create the repository variable `GEMINI_MODEL` to override the default model.
 
+The workflow uses `job_search_profile.example.md` automatically. No `JOB_SEARCH_PROFILE` secret is required. This means the public workflow evaluates jobs against the generic example criteria, not your personal profile. To use personal criteria in GitHub Actions, run the workflow from a private repository containing your private `job_search_profile.md`, or deliberately configure a private profile-delivery mechanism; do not commit personal criteria to a public repository.
+
 The workflow is manual only. On completion, it uploads the `results/` directory as the `linkedin-job-filter-results` artifact, retained for 14 days. Download it from the workflow run page.
 
 ## Privacy
 
-Public repositories and their commit history are visible to everyone. Do not add personal profiles, search results, or credentials to tracked files. Store your profile in the `JOB_SEARCH_PROFILE` secret when using GitHub Actions.
+Public repositories and their commit history are visible to everyone. Do not add personal profiles, search results, or credentials to tracked files.
 
 ## License
 
