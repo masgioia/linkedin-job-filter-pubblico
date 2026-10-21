@@ -28,22 +28,26 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
 
-      - name: Validate required secrets
+      - name: Validate configuration
         env:
           APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
-          APIFY_TASK_ID: ${{ secrets.APIFY_TASK_ID }}
+          APIFY_TASK_ID: ${{ vars.APIFY_TASK_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           JOB_SEARCH_PROFILE: ${{ secrets.JOB_SEARCH_PROFILE }}
         shell: bash
         run: |
           missing=0
-          for name in APIFY_API_TOKEN APIFY_TASK_ID GEMINI_API_KEY JOB_SEARCH_PROFILE; do
+          for name in APIFY_API_TOKEN GEMINI_API_KEY JOB_SEARCH_PROFILE; do
             value="${!name}"
             if [[ -z "${value//[[:space:]]/}" ]]; then
               echo "::error::GitHub Secret $name is missing or empty."
               missing=1
             fi
           done
+          if [[ -z "${APIFY_TASK_ID//[[:space:]]/}" ]]; then
+            echo "::error::GitHub Actions Variable APIFY_TASK_ID is missing or empty."
+            missing=1
+          fi
           exit "$missing"
 
       - name: Create private profile file
@@ -54,7 +58,7 @@ jobs:
       - name: Run job filter
         env:
           APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
-          APIFY_TASK_ID: ${{ secrets.APIFY_TASK_ID }}
+          APIFY_TASK_ID: ${{ vars.APIFY_TASK_ID }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.5-flash-lite' }}
         run: |
