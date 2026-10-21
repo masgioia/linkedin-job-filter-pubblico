@@ -165,6 +165,7 @@ def main():
     jobs = get_jobs(start_apify())
     print(f"Annunci ricevuti: {len(jobs)}")
     results, seen = [], set()
+    save(results)
     for index, raw in enumerate(jobs, 1):
         job = normalize(raw)
         if not job["title"] or not job["description"]:
