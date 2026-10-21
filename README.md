@@ -2,7 +2,11 @@
 
 Public demo repository for a Python workflow that collects job listings through Apify, evaluates them with Google Gemini, and exports ranked results to CSV and JSON.
 
-## Tests\n\nRun the automated tests locally with `python -m unittest discover -s tests -v`. They use mocked API responses and do not require API credentials or incur external API costs. A successful unit-test run does not replace a live workflow run with valid Apify and Gemini configuration.\n\n## Features
+## Tests
+
+Run the automated tests locally with `python -m unittest discover -s tests -v`. They use mocked API responses and do not require API credentials or incur external API costs. A successful unit-test run does not replace a live workflow run with valid Apify and Gemini configuration.
+
+## Features
 
 - Collects job listings using an Apify task.
 - Scores role fit, compensation likelihood, AI relevance, and work sustainability.
