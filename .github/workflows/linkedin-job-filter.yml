@@ -38,7 +38,8 @@ jobs:
         run: |
           missing=0
           for name in APIFY_API_TOKEN APIFY_TASK_ID GEMINI_API_KEY JOB_SEARCH_PROFILE; do
-            if [[ -z "${!name// /}" ]]; then
+            value="${!name}"
+            if [[ -z "${value//[[:space:]]/}" ]]; then
               echo "::error::GitHub Secret $name is missing or empty."
               missing=1
             fi
