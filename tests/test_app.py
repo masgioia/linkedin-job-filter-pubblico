@@ -126,5 +126,36 @@ class OutputTests(unittest.TestCase):
             self.assertIn("Python | ML", csv_path.read_text(encoding="utf-8-sig"))
 
 
+
+class MainFlowTests(unittest.TestCase):
+    def test_main_collects_evaluates_deduplicates_and_saves(self):
+        jobs = [
+            {"title": "Role A", "company": "A", "url": "https://example.test/a",
+             "description": "Python role"},
+            {"title": "Role A duplicate", "company": "A", "url": "https://example.test/a",
+             "description": "Duplicate"},
+            {"title": "Incomplete", "company": "B", "url": "https://example.test/b",
+             "description": ""},
+        ]
+        evaluation = {
+            "fit_score": 4, "income_score": 3, "ai_score": 5, "low_stress_score": 4,
+            "assessment": "Good match", "evidence": [], "inferences": [], "unknowns": [],
+            "strengths": [], "risks": [], "recommendation": "APPLY",
+        }
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {
+            "APIFY_API_TOKEN": "test-token", "APIFY_TASK_ID": "test-task",
+            "GEMINI_API_KEY": "test-key",
+        }), patch.object(app, "OUTPUT_DIR", Path(directory) / "results"), patch.object(
+            app, "load_profile", return_value="test profile"
+        ), patch.object(app, "start_apify", return_value="dataset-id"), patch.object(
+            app, "get_jobs", return_value=jobs
+        ), patch.object(app, "evaluate", return_value=evaluation) as evaluate:
+            app.main()
+            evaluate.assert_called_once()
+            saved = json.loads((Path(directory) / "results" / "job_results.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(saved[0]["title"], "Role A")
+            self.assertEqual(saved[0]["recommendation"], "APPLY")
+
 if __name__ == "__main__":
     unittest.main()
