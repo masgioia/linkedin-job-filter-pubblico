@@ -12,22 +12,34 @@ Public demo repository for a Python workflow that collects job listings through 
 
 ## Configuration
 
-Required environment variables:
+For local execution, set these environment variables:
+
+- `APIFY_API_TOKEN` — Apify API credential.
+- `APIFY_TASK_ID` — ID of the Apify task to run.
+- `GEMINI_API_KEY` — Google Gemini API credential.
+- Optional: `GEMINI_MODEL` (defaults to `gemini-3.5-flash-lite`).
+
+Create a local `job_search_profile.md` containing your own profile. Use `job_search_profile.example.md` as a template. Do not commit personal job-search criteria or API credentials.
+
+### GitHub Actions setup
+
+In **Settings → Secrets and variables → Actions**, create these **repository secrets**:
 
 - `APIFY_API_TOKEN`
-- `APIFY_TASK_ID`
 - `GEMINI_API_KEY`
-- Optional: `GEMINI_MODEL` (defaults to `gemini-3.5-flash-lite`; a currently listed stable model in the official Gemini API documentation)
+- `JOB_SEARCH_PROFILE` — the full text of your profile, which the workflow writes to a temporary `job_search_profile.md` file during the run.
 
-Create a local `job_search_profile.md` containing your own profile. That file, results, environment files, and Python caches are excluded by `.gitignore`. Never commit API keys or personal job-search criteria.
+Create this **repository variable** (not a secret):
 
-Install dependencies with `pip install -r requirements.txt`, set the environment variables, and run `python app.py`.
+- `APIFY_TASK_ID` — the ID of the Apify task to run. A task ID is configuration, not an API credential.
 
-For GitHub Actions, configure `APIFY_API_TOKEN`, `APIFY_TASK_ID`, `GEMINI_API_KEY`, and `JOB_SEARCH_PROFILE` as repository secrets. The workflow is manual only. On completion, it uploads the `results/` directory as the `linkedin-job-filter-results` artifact, retained for 14 days. Download it from the workflow run page.
+Optionally create the repository variable `GEMINI_MODEL` to override the default model.
+
+The workflow is manual only. On completion, it uploads the `results/` directory as the `linkedin-job-filter-results` artifact, retained for 14 days. Download it from the workflow run page.
 
 ## Privacy
 
-Public repositories and their commit history are visible to everyone. Do not add personal profiles, search results, or credentials. The workflow avoids logging job titles and company names.
+Public repositories and their commit history are visible to everyone. Do not add personal profiles, search results, or credentials to tracked files. Store your profile in the `JOB_SEARCH_PROFILE` secret when using GitHub Actions.
 
 ## License
 
