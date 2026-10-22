@@ -108,29 +108,62 @@ Restituisci esclusivamente JSON valido con questa struttura:
   "risks": ["Criticità"], "recommendation": "APPLY, CONSIDER oppure SKIP"
 }}
 """
-    response = requests.post(
-        GEMINI_URL,
-        headers={
-            "x-goog-api-key": os.environ["GEMINI_API_KEY"],
-            "Content-Type": "application/json",
-        },
-        json={
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json"},
-        },
-        timeout=90,
-    )
-    response.raise_for_status()
-    result = json.loads(
-        response.json()["candidates"][0]["content"]["parts"][0]["text"]
-    )
-    for key in ("fit_score", "income_score", "ai_score", "low_stress_score"):
-        score = result.get(key)
-        if not isinstance(score, int) or isinstance(score, bool) or not 1 <= score <= 5:
-            raise ValueError(f"Punteggio non valido: {key}")
-    if result.get("recommendation") not in {"APPLY", "CONSIDER", "SKIP"}:
-        raise ValueError("Raccomandazione non valida")
-    return result
+    headers = {
+        "x-goog-api-key": os.environ["GEMINI_API_KEY"],
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"responseMimeType": "application/json"},
+    }
+
+    # Retry temporary rate limits/service errors, but do not loop forever.
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        try:
+            response = requests.post(
+                GEMINI_URL, headers=headers, json=payload, timeout=90,
+            )
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            if attempt == max_attempts - 1:
+                raise
+            delay = min(15 * (2 ** attempt), 120)
+            print(f"Gemini: errore di rete temporaneo; nuovo tentativo tra {delay}s.")
+            time.sleep(delay)
+            continue
+
+        if response.status_code in {429, 500, 502, 503, 504}:
+            if attempt == max_attempts - 1:
+                response.raise_for_status()
+            retry_after = response.headers.get("Retry-After")
+            try:
+                delay = max(0, float(retry_after)) if retry_after else None
+            except (TypeError, ValueError):
+                delay = None
+            if delay is None:
+                base_delay = 15 if response.status_code == 429 else 2
+                delay = min(base_delay * (2 ** attempt), 120)
+            print(
+                f"Gemini: HTTP {response.status_code}; "
+                f"nuovo tentativo tra {delay:g}s "
+                f"(tentativo {attempt + 2}/{max_attempts})."
+            )
+            time.sleep(delay)
+            continue
+
+        response.raise_for_status()
+        result = json.loads(
+            response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        )
+        for key in ("fit_score", "income_score", "ai_score", "low_stress_score"):
+            score = result.get(key)
+            if not isinstance(score, int) or isinstance(score, bool) or not 1 <= score <= 5:
+                raise ValueError(f"Punteggio non valido: {key}")
+        if result.get("recommendation") not in {"APPLY", "CONSIDER", "SKIP"}:
+            raise ValueError("Raccomandazione non valida")
+        return result
+
+    raise RuntimeError("Gemini: tentativi esauriti senza risposta valida.")
 
 
 def save(results):
