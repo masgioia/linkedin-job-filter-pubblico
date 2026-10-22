@@ -324,7 +324,7 @@ def main():
         detailed_count += 1
         save(results)
 
-    # Highest combined fit, income, AI relevance and sustainability first.
+    # Hierarchical ordering: fit first, then income, AI relevance, and sustainability.
     results.sort(
         key=lambda r: (
             r["fit_score"], r["income_score"], r["ai_score"], r["low_stress_score"]
