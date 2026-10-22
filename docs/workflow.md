@@ -32,7 +32,7 @@ flowchart TD
 
 ## Automation and costs
 
-GitHub Actions runs mocked unit tests on pushes and pull requests. The external Apify + Gemini workflow is a separate manual action and runs only when `run_live` is explicitly set to `true`. A live run requires the configured credentials and can consume API credits.
+GitHub Actions runs mocked unit tests on pushes and pull requests. The external Apify + Gemini workflow runs when you manually start **LinkedIn Job Filter** from the Actions tab, after the unit tests pass. Every manual run starts the live pipeline automatically; it requires the configured credentials and can consume API credits.
 
 ## Important interpretation notes
 
