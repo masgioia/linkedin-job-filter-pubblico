@@ -205,6 +205,48 @@ def load_profile():
     return profile
 
 
+
+def prescreen(job):
+    """Cheap, deterministic first pass; only clearly unrelated roles are skipped."""
+    title = job.get("title", "").lower()
+    description = job.get("description", "").lower()
+    text = f"{title} {description}"
+
+    # Keep roles with direct technical relevance, data/AI focus, automation,
+    # or technical delivery leadership. Avoid filtering solely on job title.
+    relevant_terms = (
+        "artificial intelligence", "machine learning", "\bai\b", "\bml\b",
+        "llm", "generative ai", "data engineer", "data scientist",
+        "data analyst", "analytics engineer", "automation", "python",
+        "software engineer", "developer", "devops", "cloud architect",
+        "solution architect", "technical project manager", "it project manager",
+        "digital transformation", "erp", "robotic process automation", "rpa",
+        "business intelligence", "databricks", "machine-learning",
+    )
+    import re
+    if any(re.search(term, text) for term in relevant_terms):
+        return True, "Potenziale pertinenza tecnica, dati, AI, automazione o delivery IT."
+    return False, "Nessun indicatore preliminare sufficiente di pertinenza con i ruoli target."
+
+
+def screened_out_result(job, reason):
+    """Keep a traceable row without paying for a full Gemini assessment."""
+    return {
+        **job,
+        "fit_score": 1,
+        "income_score": 1,
+        "ai_score": 1,
+        "low_stress_score": 1,
+        "recommendation": "SKIP",
+        "assessment": "Escluso nella scrematura preliminare; non è stata eseguita l'analisi Gemini dettagliata.",
+        "evidence": [reason],
+        "inferences": [],
+        "unknowns": ["Non valutati: l'annuncio non ha superato la scrematura preliminare."],
+        "strengths": [],
+        "risks": ["Possibile falso negativo: la scrematura automatica usa parole chiave."],
+    }
+
+
 def main():
     for key in ("APIFY_API_TOKEN", "APIFY_TASK_ID", "GEMINI_API_KEY"):
         if not os.environ.get(key, "").strip():
@@ -217,6 +259,7 @@ def main():
     results, seen = [], set()
     save(results)
     evaluated_count = 0
+    detailed_count = 0
     for index, raw in enumerate(jobs, 1):
         job = normalize(raw)
         if not job["title"] or not job["description"]:
@@ -225,15 +268,23 @@ def main():
             continue
         if job["url"]:
             seen.add(job["url"])
+
+        passed, reason = prescreen(job)
+        if not passed:
+            print(f"Scrematura {index}/{len(jobs)}: escluso prima dell'analisi dettagliata.")
+            results.append(screened_out_result(job, reason))
+            save(results)
+            continue
+
         # Stay comfortably below the free-tier 15-requests/minute limit.
-        # Each Gemini request can take a couple of seconds; the delay spaces
-        # request starts apart and reduces burst-related HTTP 429 responses.
-        if evaluated_count:
+        if detailed_count:
             time.sleep(5)
-        print(f"Valutazione annuncio {index}/{len(jobs)}")
+        print(f"Analisi dettagliata {index}/{len(jobs)}")
         results.append({**job, **evaluate(profile, job)})
         evaluated_count += 1
+        detailed_count += 1
         save(results)
+
 
     results.sort(
         key=lambda r: (
@@ -242,7 +293,7 @@ def main():
         reverse=True,
     )
     save(results)
-    print(f"Completato: {len(results)} annunci valutati.")
+    print(f"Completato: {len(results)} annunci elaborati; {detailed_count} analisi Gemini dettagliate, {len(results) - detailed_count} esclusioni preliminari.")
     print("Risultati salvati localmente in results/.")
 
 
