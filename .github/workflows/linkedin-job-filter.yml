@@ -87,6 +87,41 @@ jobs:
           python -m py_compile app.py
           python -u app.py
 
+      - name: Publish statistics to workflow summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f results/run_summary.json ]]; then
+            python - <<'PY'
+            import json
+            import os
+            from pathlib import Path
+
+            data = json.loads(Path("results/run_summary.json").read_text(encoding="utf-8"))
+            summary = [
+                "## Riepilogo LinkedIn Job Filter",
+                "",
+                "| Statistica | Totale |",
+                "|---|---:|",
+                f"| Annunci ricevuti da Apify | {data.get('apify_ads_received', 0)} |",
+                f"| Annunci che hanno superato la scrematura | {data.get('screening_passed', 0)} |",
+                f"| Raccomandazioni APPLY | {data.get('apply_recommendations', 0)} |",
+                f"| Analisi approfondite completate | {data.get('detailed_assessments_completed', 0)} |",
+                f"| Annunci scartati dalla scrematura | {data.get('screening_rejected', 0)} |",
+                f"| Annunci non scremati o saltati | {data.get('not_screened_or_skipped', 0)} |",
+                "",
+                "Il dettaglio completo è disponibile nell'artefatto `linkedin-job-filter-results`.",
+                "",
+            ]
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+                f.write("\\n".join(summary))
+            PY
+          else
+            echo "## Riepilogo LinkedIn Job Filter" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Il file `results/run_summary.json` non è stato generato. Controllare i log del job." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload job results
         if: always()
         uses: actions/upload-artifact@v6
