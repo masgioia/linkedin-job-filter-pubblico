@@ -295,6 +295,7 @@ def main():
     save(results)
     screened_in = 0
     detailed_count = 0
+    screening_count = 0
 
     for index, raw in enumerate(jobs, 1):
         job = normalize(raw)
@@ -307,16 +308,17 @@ def main():
         if job["url"]:
             seen.add(job["url"])
 
+        # Space out screening requests to stay below Gemini's RPM limits.
+        if screening_count:
+            time.sleep(5)
         print(f"Scrematura {index}/{len(jobs)}: {job['title']}")
         screening = screen_job(profile, job)
+        screening_count += 1
         if not screening["keep"]:
             print(f"Scartato: {screening['reason']}")
             continue
 
         screened_in += 1
-        # Keep requests spaced out to reduce API rate-limit bursts.
-        if screened_in > 1:
-            time.sleep(5)
         print(f"Analisi approfondita {index}/{len(jobs)}: {job['title']}")
         results.append({**job, **evaluate(profile, job)})
         detailed_count += 1
