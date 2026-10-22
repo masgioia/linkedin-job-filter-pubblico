@@ -215,5 +215,33 @@ class MainFlowTests(unittest.TestCase):
             self.assertEqual(saved[0]["title"], "Role A")
             self.assertEqual(saved[0]["recommendation"], "APPLY")
 
+    def test_main_rejected_job_is_not_evaluated_or_saved(self):
+        jobs = [{
+            "title": "Store Manager", "company": "Example",
+            "url": "https://example.test/retail", "description": "Manage a retail store",
+        }]
+        rejected = {"keep": False, "reason": "Ruolo non pertinente"}
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {
+            "APIFY_API_TOKEN": "test-token", "APIFY_TASK_ID": "test-task",
+            "GEMINI_API_KEY": "test-key",
+        }), patch.object(app, "OUTPUT_DIR", Path(directory) / "results"), patch.object(
+            app, "load_profile", return_value="AI engineer profile"
+        ), patch.object(app, "start_apify", return_value="dataset-id"), patch.object(
+            app, "get_jobs", return_value=jobs
+        ), patch.object(app, "screen_job", return_value=rejected) as screen_job, patch.object(
+            app, "evaluate"
+        ) as evaluate, patch("app.time.sleep"):
+            app.main()
+            screen_job.assert_called_once()
+            evaluate.assert_not_called()
+            saved = json.loads(
+                (Path(directory) / "results" / "job_results.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(saved, [])
+            csv_text = (
+                Path(directory) / "results" / "job_results.csv"
+            ).read_text(encoding="utf-8-sig")
+            self.assertNotIn("Store Manager", csv_text)
+
 if __name__ == "__main__":
     unittest.main()
