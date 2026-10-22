@@ -214,6 +214,13 @@ class MainFlowTests(unittest.TestCase):
             self.assertEqual(len(saved), 1)
             self.assertEqual(saved[0]["title"], "Role A")
             self.assertEqual(saved[0]["recommendation"], "APPLY")
+            summary = json.loads(
+                (Path(directory) / "results" / "run_summary.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(summary["apify_ads_received"], 3)
+            self.assertEqual(summary["screening_passed"], 1)
+            self.assertEqual(summary["apply_recommendations"], 1)
+            self.assertEqual(summary["detailed_assessments_completed"], 1)
 
     def test_main_rejected_job_is_not_evaluated_or_saved(self):
         jobs = [{
