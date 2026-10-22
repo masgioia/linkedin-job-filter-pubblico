@@ -1,17 +1,45 @@
 name: LinkedIn Job Filter
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: linkedin-job-filter
+  group: linkedin-job-filter-${{ github.event_name == 'workflow_dispatch' && 'manual' || 'ci' }}
   cancel-in-progress: false
 
 jobs:
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Run automated tests
+        run: python -m unittest discover -s tests -v
+
   filter-jobs:
+    name: Apify + Gemini job filtering
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: tests
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -26,10 +54,7 @@ jobs:
           cache-dependency-path: requirements.txt
 
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt
-
-      - name: Run automated tests
-        run: python -m unittest discover -s tests -v
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
 
       - name: Validate configuration
         env:
@@ -48,10 +73,6 @@ jobs:
           done
           if [[ -z "${APIFY_TASK_ID//[[:space:]]/}" ]]; then
             echo "::error::GitHub Actions Variable APIFY_TASK_ID is missing or empty."
-            missing=1
-          fi
-          if [[ ! -s job_search_profile.example.md ]]; then
-            echo "::error::job_search_profile.example.md is missing or empty."
             missing=1
           fi
           exit "$missing"
