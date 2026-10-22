@@ -1,0 +1,92 @@
+[
+  {
+    "title": "Senior Data Analyst",
+    "company": "Example Analytics Ltd",
+    "location": "Remote",
+    "url": "https://example.test/jobs/101",
+    "posted_at": "2026-10-01",
+    "fit_score": 5,
+    "income_score": 4,
+    "ai_score": 4,
+    "low_stress_score": 3,
+    "recommendation": "APPLY",
+    "assessment": "Fictional example: strong alignment with analytical responsibilities.",
+    "evidence": [
+      "Python required",
+      "SQL required"
+    ],
+    "inferences": [
+      "Potential match for cross-functional analytics work"
+    ],
+    "unknowns": [
+      "Salary range not stated"
+    ],
+    "strengths": [
+      "Relevant data stack",
+      "Clear role scope"
+    ],
+    "risks": [
+      "Workload and on-call expectations not specified"
+    ]
+  },
+  {
+    "title": "AI Project Manager",
+    "company": "Sample Digital Group",
+    "location": "Hybrid",
+    "url": "https://example.test/jobs/102",
+    "posted_at": "2026-10-02",
+    "fit_score": 4,
+    "income_score": 3,
+    "ai_score": 5,
+    "low_stress_score": 3,
+    "recommendation": "CONSIDER",
+    "assessment": "Fictional example: relevant AI delivery role; verify compensation and scope.",
+    "evidence": [
+      "LLM project delivery mentioned",
+      "Stakeholder coordination required"
+    ],
+    "inferences": [
+      "Could align with AI programme experience"
+    ],
+    "unknowns": [
+      "Compensation",
+      "Team size"
+    ],
+    "strengths": [
+      "AI-related responsibilities",
+      "Coordination focus"
+    ],
+    "risks": [
+      "Role seniority and delivery pressure unclear"
+    ]
+  },
+  {
+    "title": "Retail Store Manager",
+    "company": "Demo Retail Co",
+    "location": "On-site",
+    "url": "https://example.test/jobs/103",
+    "posted_at": "2026-10-03",
+    "fit_score": 1,
+    "income_score": 2,
+    "ai_score": 1,
+    "low_stress_score": 2,
+    "recommendation": "SKIP",
+    "assessment": "Fictional example: weak alignment with the target profile.",
+    "evidence": [
+      "Retail operations focus"
+    ],
+    "inferences": [
+      "Limited transfer to target responsibilities"
+    ],
+    "unknowns": [
+      "Salary",
+      "Working hours"
+    ],
+    "strengths": [
+      "Operational responsibility"
+    ],
+    "risks": [
+      "Low relevance to target criteria"
+    ]
+  }
+]
