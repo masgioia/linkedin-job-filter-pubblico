@@ -206,46 +206,81 @@ def load_profile():
 
 
 
-def prescreen(job):
-    """Cheap, deterministic first pass; only clearly unrelated roles are skipped."""
-    title = job.get("title", "").lower()
-    description = job.get("description", "").lower()
-    text = f"{title} {description}"
 
-    # Keep roles with direct technical relevance, data/AI focus, automation,
-    # or technical delivery leadership. Avoid filtering solely on job title.
-    relevant_terms = (
-        "artificial intelligence", "machine learning", "\bai\b", "\bml\b",
-        "llm", "generative ai", "data engineer", "data scientist",
-        "data analyst", "analytics engineer", "automation", "python",
-        "software engineer", "developer", "devops", "cloud architect",
-        "solution architect", "technical project manager", "it project manager",
-        "digital transformation", "erp", "robotic process automation", "rpa",
-        "business intelligence", "databricks", "machine-learning",
-    )
-    import re
-    if any(re.search(term, text) for term in relevant_terms):
-        return True, "Potenziale pertinenza tecnica, dati, AI, automazione o delivery IT."
-    return False, "Nessun indicatore preliminare sufficiente di pertinenza con i ruoli target."
+def screen_job(profile, job):
+    """First-pass relevance screening. Only accepted jobs get a full assessment."""
+    prompt = f"""
+Esegui SOLO la scrematura preliminare di questo annuncio rispetto al profilo.
+Non fare una valutazione approfondita e non assegnare punteggi.
 
+PROFILO:
+{profile}
 
-def screened_out_result(job, reason):
-    """Keep a traceable row without paying for a full Gemini assessment."""
-    return {
-        **job,
-        "fit_score": 1,
-        "income_score": 1,
-        "ai_score": 1,
-        "low_stress_score": 1,
-        "recommendation": "SKIP",
-        "assessment": "Escluso nella scrematura preliminare; non è stata eseguita l'analisi Gemini dettagliata.",
-        "evidence": [reason],
-        "inferences": [],
-        "unknowns": ["Non valutati: l'annuncio non ha superato la scrematura preliminare."],
-        "strengths": [],
-        "risks": ["Possibile falso negativo: la scrematura automatica usa parole chiave."],
+ANNUNCIO:
+Titolo: {job['title']}
+Azienda: {job['company']}
+Località: {job['location']}
+Data: {job['posted_at']}
+Descrizione:
+{job['description']}
+
+Decidi se l'annuncio merita di passare all'analisi approfondita.
+keep=true solo se il ruolo è concretamente pertinente a competenze, esperienza,
+ruoli target, retribuzione e preferenze dichiarate nel profilo. Scarta ruoli
+chiaramente non pertinenti. Se le informazioni sono insufficienti ma il titolo
+e la descrizione suggeriscono una possibile corrispondenza, keep=true.
+Restituisci esclusivamente JSON valido:
+{{"keep": true, "reason": "Motivo breve basato sull'annuncio e sul profilo"}}
+"""
+    headers = {
+        "x-goog-api-key": os.environ["GEMINI_API_KEY"],
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"responseMimeType": "application/json"},
     }
 
+    # Use the same bounded retry policy as the detailed assessment.
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        try:
+            response = requests.post(
+                GEMINI_URL, headers=headers, json=payload, timeout=90,
+            )
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            if attempt == max_attempts - 1:
+                raise
+            delay = min(15 * (2 ** attempt), 120)
+            print(f"Gemini scrematura: errore di rete; nuovo tentativo tra {delay}s.")
+            time.sleep(delay)
+            continue
+
+        if response.status_code in {429, 500, 502, 503, 504}:
+            if attempt == max_attempts - 1:
+                response.raise_for_status()
+            retry_after = response.headers.get("Retry-After")
+            try:
+                delay = max(0, float(retry_after)) if retry_after else None
+            except (TypeError, ValueError):
+                delay = None
+            if delay is None:
+                delay = min((15 if response.status_code == 429 else 2) * (2 ** attempt), 120)
+            print(f"Gemini scrematura: HTTP {response.status_code}; nuovo tentativo tra {delay:g}s.")
+            time.sleep(delay)
+            continue
+
+        response.raise_for_status()
+        result = json.loads(
+            response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        )
+        if not isinstance(result.get("keep"), bool):
+            raise ValueError("Esito scrematura non valido: 'keep' deve essere booleano.")
+        if not isinstance(result.get("reason"), str) or not result["reason"].strip():
+            raise ValueError("Esito scrematura non valido: manca il motivo.")
+        return result
+
+    raise RuntimeError("Gemini scrematura: tentativi esauriti senza risposta valida.")
 
 def main():
     for key in ("APIFY_API_TOKEN", "APIFY_TASK_ID", "GEMINI_API_KEY"):
@@ -258,34 +293,36 @@ def main():
     print(f"Annunci ricevuti: {len(jobs)}")
     results, seen = [], set()
     save(results)
-    evaluated_count = 0
+    screened_in = 0
     detailed_count = 0
+
     for index, raw in enumerate(jobs, 1):
         job = normalize(raw)
         if not job["title"] or not job["description"]:
+            print(f"Annuncio {index}/{len(jobs)} ignorato: titolo o descrizione mancanti.")
             continue
         if job["url"] and job["url"] in seen:
+            print(f"Annuncio {index}/{len(jobs)} duplicato: ignorato.")
             continue
         if job["url"]:
             seen.add(job["url"])
 
-        passed, reason = prescreen(job)
-        if not passed:
-            print(f"Scrematura {index}/{len(jobs)}: escluso prima dell'analisi dettagliata.")
-            results.append(screened_out_result(job, reason))
-            save(results)
+        print(f"Scrematura {index}/{len(jobs)}: {job['title']}")
+        screening = screen_job(profile, job)
+        if not screening["keep"]:
+            print(f"Scartato: {screening['reason']}")
             continue
 
-        # Stay comfortably below the free-tier 15-requests/minute limit.
-        if detailed_count:
+        screened_in += 1
+        # Keep requests spaced out to reduce API rate-limit bursts.
+        if screened_in > 1:
             time.sleep(5)
-        print(f"Analisi dettagliata {index}/{len(jobs)}")
+        print(f"Analisi approfondita {index}/{len(jobs)}: {job['title']}")
         results.append({**job, **evaluate(profile, job)})
-        evaluated_count += 1
         detailed_count += 1
         save(results)
 
-
+    # Highest combined fit, income, AI relevance and sustainability first.
     results.sort(
         key=lambda r: (
             r["fit_score"], r["income_score"], r["ai_score"], r["low_stress_score"]
@@ -293,8 +330,15 @@ def main():
         reverse=True,
     )
     save(results)
-    print(f"Completato: {len(results)} annunci elaborati; {detailed_count} analisi Gemini dettagliate, {len(results) - detailed_count} esclusioni preliminari.")
-    print("Risultati salvati localmente in results/.")
+    print(
+        f"Completato: {len(jobs)} annunci raccolti; "
+        f"{len(seen)} URL univoci; {screened_in} superano la scrematura; "
+        f"{detailed_count} analisi approfondite."
+    )
+    print("Il CSV finale contiene solo gli annunci che hanno superato la scrematura.")
+    print("Risultati salvati in results/.")
+
+
 
 
 if __name__ == "__main__":
