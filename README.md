@@ -9,10 +9,11 @@ Run the automated tests locally with `python -m unittest discover -s tests -v`. 
 ## Features
 
 - Collects job listings using an Apify task.
+- Screens jobs first; only retained listings receive the detailed assessment and appear in the final CSV/JSON. A retained job can still receive a detailed `SKIP` recommendation.
 - Scores role fit, compensation likelihood, AI relevance, and work sustainability.
 - Records evidence, inferences, unknowns, strengths, and risks.
 - Exports CSV and JSON locally.
-- Includes a manually triggered GitHub Actions workflow.
+- GitHub Actions runs unit tests on pushes and pull requests. A live Apify/Gemini run is separately and manually enabled to avoid accidental API usage.
 
 ## Configuration
 
@@ -40,7 +41,11 @@ Optionally create the repository variable `GEMINI_MODEL` to override the default
 
 The workflow uses `job_search_profile.example.md` automatically. No `JOB_SEARCH_PROFILE` secret is required. This means the public workflow evaluates jobs against the generic example criteria, not your personal profile. To use personal criteria in GitHub Actions, run the workflow from a private repository containing your private `job_search_profile.md`, or deliberately configure a private profile-delivery mechanism; do not commit personal criteria to a public repository.
 
-The workflow is manual only. On completion, it uploads the `results/` directory as the `linkedin-job-filter-results` artifact, retained for 14 days. Download it from the workflow run page.
+The workflow runs mocked unit tests on pushes and pull requests without API credentials or external API costs. To run against Apify and Gemini, open **Actions → Job filter → Run workflow** and explicitly set **run_live** to true. This live run requires the secrets and variable listed above and may consume API credits. On completion, it uploads the `results/` directory as the `linkedin-job-filter-results` artifact, retained for 14 days.
+
+### Ranking logic
+
+Results are sorted hierarchically, not by a single combined score: `fit_score` first, then `income_score`, then `ai_score`, then `low_stress_score`, all descending. A higher fit score therefore takes precedence over a higher score in a later criterion. The CSV does not currently contain a calculated composite score.
 
 ## Privacy
 
