@@ -332,12 +332,32 @@ def main():
         reverse=True,
     )
     save(results)
-    print(
-        f"Completato: {len(jobs)} annunci raccolti; "
-        f"{len(seen)} URL univoci; {screened_in} superano la scrematura; "
-        f"{detailed_count} analisi approfondite."
+    apply_count = sum(
+        1 for result in results
+        if str(result.get("recommendation", "")).strip().upper() == "APPLY"
     )
-    print("Il CSV finale contiene solo gli annunci che hanno superato la scrematura.")
+    summary = {
+        "apify_ads_received": len(jobs),
+        "unique_urls": len(seen),
+        "screening_passed": screened_in,
+        "detailed_assessments_completed": detailed_count,
+        "apply_recommendations": apply_count,
+        "screening_rejected": screening_count - screened_in,
+        "not_screened_or_skipped": len(jobs) - screening_count,
+    }
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    with (OUTPUT_DIR / "run_summary.json").open("w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2)
+
+    print("=== RIEPILOGO ESECUZIONE ===")
+    print(f"Annunci ricevuti da Apify: {summary['apify_ads_received']}")
+    print(f"Annunci che hanno superato la scrematura: {summary['screening_passed']}")
+    print(f"Annunci con raccomandazione APPLY: {summary['apply_recommendations']}")
+    print(f"Analisi approfondite completate: {summary['detailed_assessments_completed']}")
+    print(f"Annunci scartati dalla scrematura: {summary['screening_rejected']}")
+    print(f"Annunci non scremati (incompleti/duplicati o non elaborati): {summary['not_screened_or_skipped']}")
+    print("Il riepilogo è salvato anche in results/run_summary.json.")
+    print("Il CSV finale contiene solo gli annunci che hanno superato la scrematura.");
     print("Risultati salvati in results/.")
 
 
