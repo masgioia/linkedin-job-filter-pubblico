@@ -91,7 +91,7 @@ In **Settings → Secrets and variables → Actions**, add these repository secr
 
 Add `APIFY_TASK_ID` as a repository variable (it is configuration, not a credential). You may also add `GEMINI_MODEL` as a variable to override the default model.
 
-On pushes and pull requests, GitHub Actions runs the mocked unit tests only. To run the live pipeline, open **Actions → Job filter → Run workflow** and explicitly set `run_live` to `true`. This requires the secrets and variable above and may consume API credits. Results are uploaded as the `linkedin-job-filter-results` artifact and retained for 14 days.
+On pushes and pull requests, GitHub Actions runs the mocked unit tests only. To run the live pipeline, open **Actions → LinkedIn Job Filter → Run workflow**. A manual run starts the Apify + Gemini pipeline automatically after the tests pass; it requires the secrets and variable above and may consume API credits. Results are uploaded as the `linkedin-job-filter-results` artifact and retained for 14 days.
 
 The public workflow uses `job_search_profile.example.md`, not a private profile. To use personal criteria in automation, use a private repository with your private `job_search_profile.md` or configure a secure private-profile delivery mechanism. Never commit personal criteria to this public repository.
 
