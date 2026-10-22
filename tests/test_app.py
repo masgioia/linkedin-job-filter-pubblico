@@ -206,8 +206,9 @@ class MainFlowTests(unittest.TestCase):
             app, "load_profile", return_value="test profile"
         ), patch.object(app, "start_apify", return_value="dataset-id"), patch.object(
             app, "get_jobs", return_value=jobs
-        ), patch.object(app, "evaluate", return_value=evaluation) as evaluate:
+        ), patch.object(app, "screen_job", return_value={"keep": True, "reason": "Relevant"}) as screen_job, patch.object(app, "evaluate", return_value=evaluation) as evaluate, patch("app.time.sleep"):
             app.main()
+            self.assertEqual(screen_job.call_count, 1)
             evaluate.assert_called_once()
             saved = json.loads((Path(directory) / "results" / "job_results.json").read_text(encoding="utf-8"))
             self.assertEqual(len(saved), 1)
