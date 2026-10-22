@@ -216,6 +216,7 @@ def main():
     print(f"Annunci ricevuti: {len(jobs)}")
     results, seen = [], set()
     save(results)
+    evaluated_count = 0
     for index, raw in enumerate(jobs, 1):
         job = normalize(raw)
         if not job["title"] or not job["description"]:
@@ -224,8 +225,14 @@ def main():
             continue
         if job["url"]:
             seen.add(job["url"])
+        # Stay comfortably below the free-tier 15-requests/minute limit.
+        # Each Gemini request can take a couple of seconds; the delay spaces
+        # request starts apart and reduces burst-related HTTP 429 responses.
+        if evaluated_count:
+            time.sleep(5)
         print(f"Valutazione annuncio {index}/{len(jobs)}")
         results.append({**job, **evaluate(profile, job)})
+        evaluated_count += 1
         save(results)
 
     results.sort(
