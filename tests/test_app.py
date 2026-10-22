@@ -30,30 +30,39 @@ class NormalizeTests(unittest.TestCase):
         self.assertTrue(all(value == "" for value in job.values()))
 
 
-class PrescreenTests(unittest.TestCase):
-    def test_keeps_ai_and_technical_project_roles(self):
-        keep, _ = app.prescreen({
-            "title": "ERP & AI IT Prospect Leader",
-            "description": "AI projects and IT leadership in manufacturing",
-        })
-        self.assertTrue(keep)
+class ScreeningTests(unittest.TestCase):
+    def _response(self, payload):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "candidates": [{
+                "content": {"parts": [{"text": json.dumps(payload)}]}
+            }]
+        }
+        return response
 
-    def test_rejects_clearly_unrelated_role(self):
-        keep, reason = app.prescreen({
-            "title": "Assistant Store Manager",
-            "description": "Manage store staff, sales floor and retail operations",
-        })
-        self.assertFalse(keep)
-        self.assertTrue(reason)
+    def test_screen_job_keeps_relevant_role(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}), patch(
+            "app.requests.post",
+            return_value=self._response({"keep": True, "reason": "Ruolo coerente con il profilo"}),
+        ):
+            result = app.screen_job("AI and project management profile", {
+                "title": "ERP & AI IT Prospect Leader", "company": "Example",
+                "location": "Italy", "posted_at": "", "description": "AI projects",
+            })
+        self.assertTrue(result["keep"])
 
-    def test_screened_out_row_is_marked_as_not_detailed(self):
-        row = app.screened_out_result(
-            {"title": "Store Manager", "company": "Example"},
-            "No relevant indicators",
-        )
-        self.assertEqual(row["recommendation"], "SKIP")
-        self.assertIn("non è stata eseguita", row["assessment"])
-        self.assertEqual(row["evidence"], ["No relevant indicators"])
+    def test_screen_job_rejects_unrelated_role(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}), patch(
+            "app.requests.post",
+            return_value=self._response({"keep": False, "reason": "Ruolo retail non pertinente"}),
+        ):
+            result = app.screen_job("AI engineer profile", {
+                "title": "Store Manager", "company": "Example",
+                "location": "Italy", "posted_at": "", "description": "Retail store",
+            })
+        self.assertFalse(result["keep"])
+
 
 
 class ProfileTests(unittest.TestCase):
