@@ -80,6 +80,28 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(app.evaluate("profile", {"title": "ML Engineer", "company": "X",
                 "location": "Remote", "posted_at": "", "description": "Python and ML"}), payload)
 
+    def test_evaluate_retries_after_429(self):
+        payload = {
+            "fit_score": 4, "income_score": 3, "ai_score": 5, "low_stress_score": 2,
+            "assessment": "Good technical match",
+            "evidence": [], "inferences": [], "unknowns": [], "strengths": [], "risks": [],
+            "recommendation": "CONSIDER",
+        }
+        limited = Mock()
+        limited.status_code = 429
+        limited.headers = {"Retry-After": "1"}
+        successful = self._response(payload)
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}), patch(
+            "app.requests.post", side_effect=[limited, successful]
+        ) as post, patch("app.time.sleep") as sleep:
+            result = app.evaluate("profile", {
+                "title": "ML Engineer", "company": "X", "location": "Remote",
+                "posted_at": "", "description": "Python and ML",
+            })
+        self.assertEqual(result, payload)
+        self.assertEqual(post.call_count, 2)
+        sleep.assert_called_once_with(1.0)
+
     def test_evaluate_rejects_invalid_score(self):
         payload = {
             "fit_score": 9, "income_score": 3, "ai_score": 5, "low_stress_score": 2,
